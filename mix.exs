@@ -1,10 +1,12 @@
 defmodule Peacap.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+
   def project do
     [
       app: :peacap,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       compilers: [:elixir_make] ++ Mix.compilers(),
@@ -15,7 +17,17 @@ defmodule Peacap.MixProject do
         "coveralls.post": :test,
         "coveralls.html": :test
       ],
-      deps: deps()
+      deps: deps(),
+
+      # Docs
+      name: "Peacap",
+      description: "Packet capture for Elixir using libpcap with BPF filtering",
+      source_url: "https://github.com/ausimian/peacap",
+      docs: [
+        main: "Peacap",
+        extras: ["README.md", "LICENSE.md"],
+        source_ref: "#{@version}"
+      ]
     ]
   end
 
@@ -32,6 +44,7 @@ defmodule Peacap.MixProject do
     [
       {:bpf, "~> 0.1.1"},
       {:elixir_make, "~> 0.9", runtime: false},
+      {:ex_doc, "~> 0.35", only: :dev, runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
       {:typedstruct, "~> 0.5", runtime: false}
     ]

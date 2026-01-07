@@ -28,9 +28,13 @@ defmodule Peacap do
   use GenServer, restart: :temporary
   use TypedStruct
 
+  @doc false
+  def child_spec(arg), do: super(arg)
+
   @default_snaplen 65535
   @default_poll_interval 100
 
+  @typedoc false
   typedstruct do
     field(:resource, reference())
     field(:owner, pid())
