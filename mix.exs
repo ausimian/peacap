@@ -19,6 +19,9 @@ defmodule Peacap.MixProject do
       ],
       deps: deps(),
 
+      # Hex
+      package: package(),
+
       # Docs
       name: "Peacap",
       description: "Packet capture for Elixir using libpcap with BPF filtering",
@@ -28,6 +31,14 @@ defmodule Peacap.MixProject do
         extras: ["README.md", "LICENSE.md"],
         source_ref: "#{@version}"
       ]
+    ]
+  end
+
+  defp package do
+    [
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/ausimian/peacap"},
+      files: ~w(lib c_src Makefile mix.exs README.md LICENSE.md)
     ]
   end
 
