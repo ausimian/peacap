@@ -1,24 +1,16 @@
-defmodule PeacapTest do
+defmodule Peacap.DarwinTest do
+  @moduledoc """
+  macOS-specific tests for packet capture.
+
+  On macOS loopback (lo0), packets use DLT_NULL format:
+  - 4-byte header with address family (AF_INET=2, AF_INET6=30) in host byte order
+  - Then the IP packet follows
+  """
   use ExUnit.Case
 
-  # On macOS loopback (lo0), packets have a 4-byte header:
-  # - Bytes 0-3: Address family (AF_INET=2 for IPv4, AF_INET6=30 for IPv6)
-  # Then the IP packet follows.
-  #
-  # So to match IPv4 packets, we need to check:
-  # - Bytes 0-3: <<2, 0, 0, 0>> (AF_INET in little-endian on macOS)
-  # - Byte 4: version nibble should be 4
+  @moduletag :darwin
 
   @loopback "lo0"
-
-  describe "error handling" do
-    test "returns error for non-existent interface" do
-      require BPF
-
-      program = BPF.compile(fn <<_::binary>> -> true end)
-      assert {:error, _reason} = Peacap.start("nonexistent0", program)
-    end
-  end
 
   describe "select notification" do
     # On macOS, BPF select() is unreliable - it often doesn't fire even when
@@ -38,7 +30,7 @@ defmodule PeacapTest do
       Process.sleep(50)
 
       # Now generate traffic - this should trigger the select callback
-      # Use more packets to ensure BPF buffer fills enough to trigger select
+      # Use more packets to fill BPF buffer enough to trigger select
       generate_ping_burst()
 
       # Should receive packets delivered via the select notification path
@@ -50,68 +42,8 @@ defmodule PeacapTest do
     end
   end
 
-  describe "basic capture" do
-    test "captures packets on loopback" do
-      require BPF
-
-      # Accept all packets
-      program = BPF.compile(fn <<_::binary>> -> true end)
-      {:ok, pid} = Peacap.start(@loopback, program)
-
-      # Generate traffic
-      generate_ping()
-
-      # Should receive at least one packet
-      assert_receive {:peacap_packet, ^pid, packet}, 1000
-      assert is_binary(packet)
-      assert byte_size(packet) > 0
-
-      Peacap.stop(pid)
-    end
-
-    test "stops cleanly" do
-      require BPF
-
-      program = BPF.compile(fn <<_::binary>> -> true end)
-      {:ok, pid} = Peacap.start(@loopback, program)
-
-      ref = Process.monitor(pid)
-      Peacap.stop(pid)
-
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 1000
-    end
-
-    test "cleans up when owner dies" do
-      require BPF
-
-      program = BPF.compile(fn <<_::binary>> -> true end)
-
-      # Start capture from a temporary process
-      test_pid = self()
-
-      owner =
-        spawn(fn ->
-          {:ok, pid} = Peacap.start(@loopback, program)
-          send(test_pid, {:started, pid})
-
-          receive do
-            :stop -> :ok
-          end
-        end)
-
-      assert_receive {:started, capture_pid}, 1000
-      ref = Process.monitor(capture_pid)
-
-      # Kill the owner
-      Process.exit(owner, :kill)
-
-      # Capture should terminate
-      assert_receive {:DOWN, ^ref, :process, ^capture_pid, _reason}, 1000
-    end
-  end
-
   describe "BPF filtering" do
-    test "filter accepts matching packets" do
+    test "filter accepts matching IPv4 packets" do
       require BPF
 
       # On macOS loopback, first 4 bytes are AF family
@@ -183,32 +115,6 @@ defmodule PeacapTest do
       # Verify protocol is ICMP (1)
       <<2, 0, 0, 0, _::72, proto::8, _::binary>> = packet
       assert proto == 1
-
-      Peacap.stop(pid)
-    end
-
-    test "filter by packet size" do
-      require BPF
-
-      # Only accept packets larger than 50 bytes
-      program =
-        BPF.compile(fn
-          <<_::binary>> = pkt when byte_size(pkt) > 50 -> true
-        end)
-
-      {:ok, pid} = Peacap.start(@loopback, program)
-
-      # Generate traffic - ping packets are typically ~84 bytes on loopback
-      generate_ping()
-
-      packets = collect_packets(pid, 500)
-
-      # All received packets should be > 50 bytes
-      assert length(packets) > 0
-
-      for packet <- packets do
-        assert byte_size(packet) > 50
-      end
 
       Peacap.stop(pid)
     end
@@ -299,55 +205,6 @@ defmodule PeacapTest do
         assert bpf_device_count() == 0
       end
     end
-
-    test "BPF device is released when owner dies" do
-      require BPF
-
-      program = BPF.compile(fn <<_::binary>> -> true end)
-      test_pid = self()
-
-      assert bpf_device_count() == 0
-
-      owner =
-        spawn(fn ->
-          {:ok, pid} = Peacap.start(@loopback, program)
-          send(test_pid, {:started, pid})
-
-          receive do
-            :stop -> :ok
-          end
-        end)
-
-      assert_receive {:started, capture_pid}, 1000
-      assert bpf_device_count() == 1
-
-      # Kill owner - BPF device should be released
-      ref = Process.monitor(capture_pid)
-      Process.exit(owner, :kill)
-      assert_receive {:DOWN, ^ref, :process, ^capture_pid, _}, 1000
-
-      Process.sleep(50)
-      assert bpf_device_count() == 0
-    end
-
-    test "BPF device is released when GenServer is killed" do
-      require BPF
-
-      program = BPF.compile(fn <<_::binary>> -> true end)
-
-      assert bpf_device_count() == 0
-
-      {:ok, pid} = Peacap.start(@loopback, program)
-      assert bpf_device_count() == 1
-
-      # Kill the GenServer directly
-      ref = Process.monitor(pid)
-      Process.exit(pid, :kill)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :killed}, 1000
-
-      Process.sleep(50)
-      assert bpf_device_count() == 0
-    end
   end
 
   # Helper functions
@@ -361,35 +218,18 @@ defmodule PeacapTest do
   end
 
   defp generate_ping do
-    # Run ping in background to generate loopback traffic
     spawn(fn ->
       System.cmd("ping", ["-c", "2", "-i", "0.1", "127.0.0.1"], stderr_to_stdout: true)
     end)
 
-    # Give it a moment to start
     Process.sleep(50)
   end
 
   defp generate_ping_burst do
-    # Generate more traffic to fill the BPF buffer and trigger select
     spawn(fn ->
       System.cmd("ping", ["-c", "10", "-i", "0.01", "127.0.0.1"], stderr_to_stdout: true)
     end)
 
-    # Give it a moment to start
     Process.sleep(100)
-  end
-
-  defp collect_packets(pid, timeout_ms) do
-    collect_packets(pid, timeout_ms, [])
-  end
-
-  defp collect_packets(pid, timeout_ms, acc) do
-    receive do
-      {:peacap_packet, ^pid, packet} ->
-        collect_packets(pid, timeout_ms, [packet | acc])
-    after
-      timeout_ms -> Enum.reverse(acc)
-    end
   end
 end
