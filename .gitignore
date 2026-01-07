@@ -24,3 +24,5 @@ peacap-*.tar
 
 # Compiled NIF shared objects
 /priv/*.so
+
+.erl.history/

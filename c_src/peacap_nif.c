@@ -94,10 +94,22 @@ static ERL_NIF_TERM nif_open(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]
         return enif_make_badarg(env);
     }
 
-    // timeout_ms=0 since we use non-blocking mode
-    pcap_t *handle = pcap_open_live(interface, snaplen, promisc, 0, errbuf);
+    // Use pcap_create + pcap_activate for better control over capture settings
+    pcap_t *handle = pcap_create(interface, errbuf);
     if (!handle) {
         return enif_make_tuple2(env, atom_error, enif_make_string(env, errbuf, ERL_NIF_LATIN1));
+    }
+
+    pcap_set_snaplen(handle, snaplen);
+    pcap_set_promisc(handle, promisc);
+    pcap_set_timeout(handle, 1);  // 1ms timeout for responsive non-blocking reads
+    pcap_set_immediate_mode(handle, 1);  // Deliver packets immediately (critical for Linux)
+
+    int status = pcap_activate(handle);
+    if (status < 0) {
+        const char *err = pcap_statustostr(status);
+        pcap_close(handle);
+        return enif_make_tuple2(env, atom_error, enif_make_string(env, err, ERL_NIF_LATIN1));
     }
 
     if (pcap_setnonblock(handle, 1, errbuf) < 0) {

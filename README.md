@@ -42,7 +42,37 @@ def deps do
 end
 ```
 
-Requires libpcap to be installed on your system.
+### Requirements
+
+**Build time:** libpcap headers and libraries must be installed.
+
+```bash
+# macOS (included with Xcode Command Line Tools)
+xcode-select --install
+
+# Debian/Ubuntu
+sudo apt-get install libpcap-dev
+
+# Fedora/RHEL
+sudo dnf install libpcap-devel
+```
+
+**Runtime:** libpcap must be installed on the target system.
+
+### Running Tests
+
+```bash
+# macOS - no special privileges needed for loopback
+mix test
+
+# Linux - requires sudo or CAP_NET_RAW
+sudo mix test
+
+# Or grant capability to the beam executable (find path with iex first)
+# iex> IO.puts("#{:code.root_dir()}/erts-#{:erlang.system_info(:version)}/bin/beam.smp")
+sudo setcap cap_net_raw=eip /usr/lib/erlang/erts-*/bin/beam.smp
+mix test
+```
 
 ## License
 
