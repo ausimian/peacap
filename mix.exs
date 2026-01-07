@@ -1,11 +1,11 @@
-defmodule PeaCap.MixProject do
+defmodule Peacap.MixProject do
   use Mix.Project
 
   def project do
     [
       app: :peacap,
       version: "0.1.0",
-      elixir: "~> 1.18",
+      elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       compilers: [:elixir_make] ++ Mix.compilers(),
       test_coverage: [tool: ExCoveralls],
