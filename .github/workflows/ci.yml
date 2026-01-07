@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main, linux, ci]
   pull_request:
     branches: [main]
 
@@ -22,6 +21,8 @@ jobs:
           - elixir: "1.17"
             otp: "27.2"
           - elixir: "1.18"
+            otp: "27.2"
+          - elixir: "1.19"
             otp: "27.2"
 
     steps:
@@ -65,6 +66,8 @@ jobs:
           - elixir: "1.17"
             otp: "27.2"
           - elixir: "1.18"
+            otp: "27.2"
+          - elixir: "1.19"
             otp: "27.2"
 
     steps:
