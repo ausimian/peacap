@@ -1,5 +1,9 @@
 # Peacap
 
+[![CI](https://github.com/ausimian/peacap/actions/workflows/ci.yml/badge.svg)](https://github.com/ausimian/peacap/actions/workflows/ci.yml)
+[![Hex.pm](https://img.shields.io/hexpm/v/peacap.svg)](https://hex.pm/packages/peacap)
+[![Docs](https://img.shields.io/badge/hex-docs-blue.svg)](https://hexdocs.pm/peacap)
+
 Packet capture for Elixir using libpcap with BPF filtering.
 
 ## Features
