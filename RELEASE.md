@@ -1,3 +1,3 @@
-### Added
+### Changed
 
-- Add expublish for version management and hex publishing
+- Relaxed BPF dependency requirements

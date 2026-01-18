@@ -54,7 +54,7 @@ defmodule Peacap.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:bpf, "~> 0.1.1"},
+      {:bpf, "~> 0.1"},
       {:elixir_make, "~> 0.9", runtime: false},
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
